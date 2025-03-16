@@ -1,16 +1,53 @@
 version: 2.1
 
-orbs:
-  aws-code-deploy: circleci/aws-code-deploy@x.y
-  aws-cli: circleci/aws-cli@x.z
+executors:
+  docker-executor:
+    docker:
+      - image: circleci/python:3.8
+    working_directory: ~/repo
+
+jobs:
+  build:
+    executor: docker-executor
+    steps:
+      - checkout
+      - run:
+          name: Install Dependencies
+          command: |
+            sudo apt update
+            sudo apt install -y docker.io docker-compose
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build Docker Image
+          command: docker build -t myapp:latest .
+      - run:
+          name: Run Unit Tests
+          command: |
+            docker run --rm myapp pytest
+
+  deploy:
+    executor: docker-executor
+    steps:
+      - checkout
+      - run:
+          name: Start Application Locally
+          command: |
+            docker-compose up -d
+            sleep 10  # Wait for containers to start
+      - run:
+          name: Check Running Containers
+          command: docker ps
+      - run:
+          name: Print Application Logs
+          command: docker-compose logs
+
 workflows:
-  deploy_application:
+  version: 2
+  build_and_deploy:
     jobs:
-      - aws-code-deploy/deploy:
-          auth:
-            - aws-cli/setup
-          application-name: myApplication
-          bundle-bucket: myApplicationS3Bucket
-          bundle-key: myS3BucketKey
-          deployment-group: myDeploymentGroup
-          service-role-arn: myDeploymentGroupRoleARN
+      - build
+      - deploy:
+          requires:
+            - build
+
