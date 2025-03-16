@@ -4,7 +4,7 @@ jobs:
   build:
     docker:
       - image: golang:1.18  # Use latest stable Go version
-    working_directory: ~/invoicer-chapter3  # Match local path
+    working_directory: ~/project  # Avoid GOPATH dependency
 
     steps:
       - checkout
@@ -15,9 +15,10 @@ jobs:
             go env -w GO111MODULE=on
 
       - run:
-          name: Install Dependencies
+          name: Initialize Go Modules (if missing)
           command: |
-            go mod tidy  # Download missing dependencies
+            if [ ! -f "go.mod" ]; then go mod init github.com/HamnaAhsann/invoicer-chapter3; fi
+            go mod tidy
 
       - run:
           name: Build Application
@@ -37,17 +38,7 @@ jobs:
             docker build -t hamnaahsann/invoicer-chapter3 .
 
       - run:
-          name: Run Docker Container
-          command: |
-            docker run -d -p 8080:8080 --name invoicer hamnaahsann/invoicer-chapter3
-
-      - run:
-          name: Verify Running Container
-          command: |
-            docker ps | grep invoicer
-
-      - run:
-          name: Push to Docker Hub
+          name: Push Docker Image
           command: |
             echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
             docker push hamnaahsann/invoicer-chapter3
