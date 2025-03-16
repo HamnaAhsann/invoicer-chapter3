@@ -1,21 +1,53 @@
-version: 2
+version: 2.1
+
 jobs:
   build:
-    working_directory: ~/invoicer-chapter3  # Match your local path
     docker:
-      - image: golang:latest
+      - image: golang:1.18  # Use latest stable Go version
+    working_directory: ~/invoicer-chapter3  # Match local path
+
     steps:
       - checkout
+
       - run:
-          name: Initialize Go Modules
+          name: Enable Go Modules
           command: |
-            go mod tidy  # Ensure dependencies are fetched
+            go env -w GO111MODULE=on
+
+      - run:
+          name: Install Dependencies
+          command: |
+            go mod tidy  # Download missing dependencies
+
       - run:
           name: Build Application
           command: |
-            go build -o bin/invoicer main.go
+            go build -o invoicer main.go
+
       - run:
-          name: Run Application
+          name: Run Unit Tests
           command: |
-            ./bin/invoicer &
-          background: true
+            go test -v ./...
+
+      - setup_remote_docker
+
+      - run:
+          name: Build Docker Image
+          command: |
+            docker build -t hamnaahsann/invoicer-chapter3 .
+
+      - run:
+          name: Run Docker Container
+          command: |
+            docker run -d -p 8080:8080 --name invoicer hamnaahsann/invoicer-chapter3
+
+      - run:
+          name: Verify Running Container
+          command: |
+            docker ps | grep invoicer
+
+      - run:
+          name: Push to Docker Hub
+          command: |
+            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+            docker push hamnaahsann/invoicer-chapter3
