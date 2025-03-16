@@ -6,7 +6,7 @@ jobs:
       - image: circleci/golang:1.18  # Use an appropriate image for your language
     steps:
       - checkout
-
+      
       # Ensure bin/invoicer is built before copying in Docker
       - run:
           name: Build Invoicer Binary
