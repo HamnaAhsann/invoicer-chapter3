@@ -15,10 +15,17 @@ jobs:
             go env -w GO111MODULE=on
 
       - run:
+          name: Initialize Go Modules (if missing)
+          command: |
+            if [ ! -f "go.mod" ]; then
+              go mod init github.com/HamnaAhsann/invoicer-chapter3
+            fi
+
+      - run:
           name: Synchronize Vendor Directory
           command: |
             go mod tidy
-            go mod vendor  # This ensures dependencies are properly stored
+            go mod vendor  # Ensure dependencies are stored
 
       - run:
           name: Build Application
