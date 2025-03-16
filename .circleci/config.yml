@@ -1,40 +1,21 @@
 version: 2
 jobs:
   build:
-    working_directory: ~/invoicer  # Change this to match your local repo path
+    working_directory: ~/invoicer-chapter3  # Match your local path
     docker:
-      - image: golang:latest  # Use latest Go image instead of old one
-    environment:
-      GO15VENDOREXPERIMENT: 1
-    branches:
-      only:
-        - main  # Use 'main' instead of 'master' if needed
+      - image: golang:latest
     steps:
       - checkout
-      - setup_remote_docker
-
-      - run: mkdir -p ~/invoicer/bin
-      - run: go mod tidy  # Ensure dependencies are up-to-date
-
       - run:
-          name: Build application container
+          name: Initialize Go Modules
+          command: |
+            go mod tidy  # Ensure dependencies are fetched
+      - run:
+          name: Build Application
           command: |
             go build -o bin/invoicer main.go
-            docker build -t my-local-invoicer .
-
       - run:
-          name: Run application in background
+          name: Run Application
           command: |
-            docker run -d -p 8080:8080 my-local-invoicer
+            ./bin/invoicer &
           background: true
-
-      - run:
-          name: Check if application is running
-          command: curl -f http://localhost:8080 || exit 1
-
-      - deploy:
-          name: Push Docker image to Docker Hub
-          command: |
-            docker login -u ${DOCKER_USER} -p ${DOCKER_PASS}
-            docker tag my-local-invoicer ${DOCKER_USER}/invoicer:latest
-            docker push ${DOCKER_USER}/invoicer:latest
