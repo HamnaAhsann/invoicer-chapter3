@@ -1,53 +1,40 @@
 version: 2.1
 
-executors:
-  docker-executor:
-    docker:
-      - image: circleci/python:3.8
-    working_directory: ~/repo
-
 jobs:
   build:
-    executor: docker-executor
+    docker:
+      - image: circleci/golang:1.18  # Use an appropriate image for your language
     steps:
       - checkout
+
+      # Ensure bin/invoicer is built before copying in Docker
       - run:
-          name: Install Dependencies
+          name: Build Invoicer Binary
           command: |
-            sudo apt update
-            sudo apt install -y docker.io docker-compose
+            mkdir -p bin
+            go build -o bin/invoicer cmd/invoicer/main.go  # Adjust for your project structure
+
+      - run:
+          name: Run Unit Tests
+          command: go test ./...  # Runs tests (adjust as needed)
+
       - setup_remote_docker:
-          docker_layer_caching: true
+          version: 20.10.7
+
       - run:
           name: Build Docker Image
           command: docker build -t myapp:latest .
-      - run:
-          name: Run Unit Tests
-          command: |
-            docker run --rm myapp pytest
 
-  deploy:
-    executor: docker-executor
-    steps:
-      - checkout
       - run:
-          name: Start Application Locally
-          command: |
-            docker-compose up -d
-            sleep 10  # Wait for containers to start
+          name: Log in to Docker Hub
+          command: echo "$DOCKERHUB_PASSWORD" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
+
       - run:
-          name: Check Running Containers
-          command: docker ps
-      - run:
-          name: Print Application Logs
-          command: docker-compose logs
+          name: Push Image to Docker Hub
+          command: docker tag myapp:latest mydockerhubuser/myapp:latest && docker push mydockerhubuser/myapp:latest
 
 workflows:
   version: 2
-  build_and_deploy:
+  build-deploy:
     jobs:
       - build
-      - deploy:
-          requires:
-            - build
-
